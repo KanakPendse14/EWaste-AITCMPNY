@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <link rel="stylesheet" type="text/css"
+        href="https://api.tomtom.com/maps-sdk-for-web/cdn/6.x/6.18.0/maps/maps.css" />
+    <link rel="shortcut icon" href="#">
+    <script src="https://api.tomtom.com/maps-sdk-for-web/cdn/6.x/6.18.0/maps/maps-web.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.16.9/xlsx.full.min.js"></script>
+    <script>
+        const redMarker = new tt.Marker({ color: 'red' }); // Create a red marker
+    </script>
+</head>
+
+<body style="width: 95%; height: 95%; margin: 0; padding: 0;">
+    <form id="location-form">
+        <input type="text" id="location-input" placeholder="Enter a location">
+        <button type="submit">Get Coordinates</button>
+    </form>
+
+    <div id="map" style="width: 700px; height: 600px;"></div>
+
+    <script>
+        const form = document.getElementById('location-form');
+        const locationInput = document.getElementById('location-input');
+        let center = [4, 44.4]; // Default map center
+
+        // Replace 'YOUR_API_KEY' with your actual TomTom API Key
+        const apiKey = 'gdDQALLPzOIVyP5gTdrqyBkXJCPfhRu4'; // Replace with your API key
+
+        var map = tt.map({
+            key: apiKey,
+            container: "map",
+            center: center,
+            zoom: 10
+        });
+
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+            const location = locationInput.value;
+
+            // Create the API request URL
+            const apiUrl = `https://api.tomtom.com/search/2/geocode/${encodeURIComponent(location)}.json?key=${apiKey}`;
+
+            // Make a GET request to TomTom API
+            axios.get(apiUrl)
+                .then(response => {
+                    const coordinates = response.data.results[0].position;
+                    const lat = coordinates.lat;
+                    const lng = coordinates.lon;
+
+                    console.log(`Latitude: ${lat}`);
+                    console.log(`Longitude: ${lng}`);
+
+                    // Update the map center to the user-entered coordinates
+                    map.setCenter([lng, lat]);
+
+                    // Add a marker at the user-entered location
+                    redMarker
+                        .setLngLat([lng, lat])
+                        .setPopup(new tt.Popup().setHTML(`<p>Latitude: ${lat}<br>Longitude: ${lng}</p>`))
+                        .addTo(map);
+                })
+                .catch(error => {
+                    console.error('Error fetching data:', error);
+                });
+        });
+    </script>
+
+    <script type="text/javascript">
+        var map = tt.map({
+            key: "gdDQALLPzOIVyP5gTdrqyBkXJCPfhRu4",
+            container: "map",
+            center: center,
+            zoom: 10
+        })
+
+        // Check if geolocation is available in the browser
+        if ("geolocation" in navigator) {
+            navigator.geolocation.getCurrentPosition(function (position) {
+                var userLat = position.coords.latitude;
+                var userLng = position.coords.longitude;
+
+                map.setCenter([userLng, userLat]);
+
+                // Add a marker at the user's location
+                redMarker
+                    .setLngLat([userLng, userLat])
+                    .setPopup(new tt.Popup().setHTML(`<p>Latitude: ${userLat}<br>Longitude: ${userLng}</p>`))
+                    .addTo(map);
+            });
+        } else {
+            alert("Enable location permission!!!");
+            console.error("Geolocation is not available in this browser.");
+        }
+
+        // Function to add markers for all locations in the Excel file
+        function addMarkersForLocations(data) {
+            data.forEach((location) => {
+                new tt.Marker()
+                    .setLngLat([location.longitude, location.latitude])
+                    .setPopup(new tt.Popup().setHTML(`<p><h4>${location.name}</h4>${location.email}<br>${location.contact}</p></p>`))
+                    .addTo(map);
+            });
+        }
+
+        // Fetch and parse the Excel file
+        fetch('location.xlsx')
+            .then((response) => response.arrayBuffer())
+            .then((arrayBuffer) => {
+                const data = new Uint8Array(arrayBuffer);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const sheetName = workbook.SheetNames[0];
+                const sheet = workbook.Sheets[sheetName];
+                const jsonData = XLSX.utils.sheet_to_json(sheet);
+                addMarkersForLocations(jsonData);
+            })
+            .catch((error) => {
+                console.error('Error fetching or parsing Excel file:', error);
+            });
+    </script>
+
+</html>
